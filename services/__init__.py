@@ -182,6 +182,7 @@ class BaseService(CeleryMixin, _BaseService):
 
     async def patch_app_version(self):
         self.app.version = await self.update_manager.manager.current_version()
+        # self.app.latest_version = await self.update_manager.manager.latest_version()
 
     def setup_update_manager(self):
         self.update_manager = manager.UpdateManager()
