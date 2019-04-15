@@ -5,6 +5,9 @@ import logging
 
 
 class PipUpdateManager(BaseUpdateManager):
+    async def latest_version(self) -> str:
+        pass
+
     async def has_updates(self):
         pass
 

@@ -153,11 +153,14 @@ def _url_pattern(url_, float_slash=True):
 
 class BaseService(CeleryMixin, _BaseService):
     internal_api_connection_class = JSONRPCInternalConnection
+    check_updates_period = 5 * 60  # 5 min
 
     def __init__(self, handlers=None, default_host=None, transforms=None, **kwargs):
         self.gis = None
         self.started_at = None
         self.update_manager = None
+        self.updates_checker = PeriodicCallback(
+            self.check_updates, self.check_updates_period * 1000)
         super().__init__(handlers, default_host, transforms, **kwargs)
 
     @property
@@ -174,15 +177,23 @@ class BaseService(CeleryMixin, _BaseService):
             return timezone.now() - self.started_at
 
     def setup_gis(self):
-        gis = None
         if getattr(self.config, 'GEOIP_PATH', None):
-            self.gis = gis = GeoIP2()
-        logger.debug('Geo position tracking system status: '
-                     '%s.' % 'ENABLED' if gis else 'DISABLED')
+            self.gis = GeoIP2()
+        logger.debug('Geo position tracking system status: %s.' %
+                     'ENABLED' if self.gis else 'DISABLED')
 
     async def patch_app_version(self):
         self.app.version = await self.update_manager.manager.current_version()
-        # self.app.latest_version = await self.update_manager.manager.latest_version()
+
+    async def check_updates(self):
+        mgr = self.update_manager.manager
+        self.app.latest_version = await mgr.latest_version()
+        self.app.has_updates = has_updates = await mgr.has_updates()
+        current_version, latest_version = self.app.version, self.app.latest_version
+        if has_updates:
+            # TODO: send message to admin service
+            # logger.debug('Updates found: %s => %s' % (current_version, latest_version))
+            pass
 
     def setup_update_manager(self):
         self.update_manager = manager.UpdateManager()
@@ -227,11 +238,13 @@ class BaseService(CeleryMixin, _BaseService):
         await self.patch_app_version()
         await self.internal_connection.connect()
         self.start_celery()
+        self.updates_checker.start()
         self.started_at = timezone.now()  # TODO: already started?
         logger.info('Service `%s` started.' % self.name)
 
     async def on_stop(self) -> None:
         await self.internal_connection.disconnect()
+        self.updates_checker.stop()
         logger.info('Service `%s` stopped.' % self.name)
 
 
