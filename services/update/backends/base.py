@@ -17,5 +17,8 @@ class BaseUpdateManager:
     async def check_updates(self) -> List[str]:
         raise NotImplementedError
 
+    async def updates_info(self) -> List[str]:
+        raise NotImplementedError
+
     async def update(self, version: Optional[str] = None) -> None:
         raise NotImplementedError

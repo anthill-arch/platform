@@ -17,6 +17,7 @@ class GitUpdateManager(BaseUpdateManager):
     remote_branch = 'origin/master'
     deployment_key_file = None
     deployment_key_data = None
+    commits_max_count = False
 
     def __init__(self):
         self._root = settings.BASE_DIR
@@ -36,9 +37,11 @@ class GitUpdateManager(BaseUpdateManager):
                 return self.repo.git.custom_environment(GIT_SSH_COMMAND=ssh_cmd)
             return contextlib.suppress()
 
-    def _versions(self, branch, max_count=False) -> List[str]:
-        commits = list(self.repo.iter_commits(branch, max_count=max_count))
-        return list(map(lambda x: x.hexsha, commits))
+    def _commits(self, branch) -> List[git.Commit]:
+        return self.repo.iter_commits(branch, max_count=self.commits_max_count)
+
+    def _versions(self, branch) -> List[str]:
+        return list(map(lambda x: x.hexsha, self._commits(branch)))
 
     def _remote_versions(self) -> List[str]:
         return self._versions(self.remote_branch)
@@ -75,8 +78,7 @@ class GitUpdateManager(BaseUpdateManager):
         return (local_latest != remote_latest and
                 local_latest.committed_date < remote_latest.committed_date)
 
-    @as_future
-    def check_updates(self) -> List[str]:
+    def _get_updates(self) -> List[str]:
         self.repo.git.checkout(self.local_branch)
         with self.deploy_environment_context():
             self.repo.remotes.origin.fetch()
@@ -84,6 +86,17 @@ class GitUpdateManager(BaseUpdateManager):
         remote_versions = set(self._remote_versions())
         new_versions = remote_versions.difference(local_versions)
         return list(map(self.format_version, new_versions))
+
+    @as_future
+    def check_updates(self) -> List[str]:
+        return self._get_updates()
+
+    @as_future
+    def updates_info(self) -> List[str]:
+        return [
+            c.message for c in self._commits(self.remote_branch)
+            if c.hexsha in self._get_updates()
+        ]
 
     @as_future
     def update(self, version: Optional[str] = None) -> None:

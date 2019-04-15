@@ -20,5 +20,8 @@ class PipUpdateManager(BaseUpdateManager):
     async def check_updates(self) -> List[str]:
         pass
 
+    async def updates_info(self) -> List[str]:
+        pass
+
     async def update(self, version: Optional[str] = None) -> None:
         pass
