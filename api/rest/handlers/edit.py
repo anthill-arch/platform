@@ -1,6 +1,6 @@
 from anthill.framework.handlers.base import RequestHandler
 from anthill.framework.handlers.detail import SingleObjectMixin, DetailHandler
-from anthill.framework.utils.asynchronous import thread_pool_exec
+from anthill.framework.utils.asynchronous import thread_pool_exec as future_exec
 from anthill.framework.forms.orm import model_form
 from anthill.framework.db import db
 
@@ -79,14 +79,17 @@ class ModelFormMixin(FormMixin, SingleObjectMixin):
             kwargs.update({'obj': self.object})
         return kwargs
 
+    def configure_object(self, form):
+        form.populate_obj(self.object)
+
     async def form_valid(self, form):
         """If the form is valid, save the associated model."""
         if self.object is None:
             model = self.get_model()
             # noinspection PyAttributeOutsideInit
             self.object = model()
-        form.populate_obj(self.object)
-        await thread_pool_exec(self.object.save)
+        self.configure_object(form)
+        await future_exec(self.object.save)
         await super().form_valid(form)
 
 
@@ -163,7 +166,7 @@ class DeletionMixin:
     async def delete(self, *args, **kwargs):
         # noinspection PyAttributeOutsideInit
         self.object = await self.get_object()
-        await thread_pool_exec(self.object.delete)
+        await future_exec(self.object.delete)
 
 
 class DeleteHandler(DeletionMixin, DetailHandler):
