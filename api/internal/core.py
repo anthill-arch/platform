@@ -41,7 +41,7 @@ INTERNAL_REQUEST_CACHING = getattr(settings, 'INTERNAL_REQUEST_CACHING', True)
 INTERNAL_API_METHOD_CACHING = getattr(settings, 'INTERNAL_API_METHOD_CACHING', False)
 
 
-def cache_key(service, method, postfix=None):
+def _cache_key(service, method, postfix=None):
     parts = ['internal.cache', service, method]
     if postfix:
         parts.append(postfix)
@@ -67,7 +67,7 @@ def _cached(key, timeout):
     return decorator
 
 
-cached = _cached(key=cache_key, timeout=DEFAULT_CACHE_TIMEOUT)
+cached = _cached(key=_cache_key, timeout=DEFAULT_CACHE_TIMEOUT)
 
 
 class InternalAPIError(Exception):
@@ -115,17 +115,18 @@ class InternalAPI(Singleton):
             self.add_method(method)
 
     def as_internal(self, enable_cache=INTERNAL_API_METHOD_CACHING,
-                    cache_timeout=DEFAULT_CACHE_TIMEOUT, cache_key=cache_key):
+                    cache_timeout=DEFAULT_CACHE_TIMEOUT, cache_key=_cache_key):
         """Decorator marks function as an internal api method."""
 
         def decorator(func):
             def get_cache_key(api_, *args, **kwargs):
-                kwargs = copy.deepcopy(kwargs)
-                del kwargs['service']
-                method = func.__name__
-                postfix = hashlib.md5(utf8(str(args) + str(kwargs))).hexdigest()
-                key = cache_key(self.service.name, method, postfix) if callable(cache_key) else cache_key
-                return key
+                if callable(cache_key):
+                    kwargs = copy.deepcopy(kwargs)
+                    del kwargs['service']
+                    method = func.__name__
+                    postfix = hashlib.md5(utf8(str(args) + str(kwargs))).hexdigest()
+                    return cache_key(self.service.name, method, postfix)
+                return cache_key
 
             if inspect.iscoroutinefunction(func):
                 async def wrapper(api_, *args, **kwargs):

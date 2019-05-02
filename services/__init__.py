@@ -182,18 +182,14 @@ class BaseService(CeleryMixin, _BaseService):
         logger.debug('Geo position tracking system status: %s.' %
                      'ENABLED' if self.gis else 'DISABLED')
 
-    async def patch_app_version(self):
+    async def setup_app_version(self):
         self.app.version = await self.update_manager.manager.current_version()
 
     async def check_updates(self):
-        mgr = self.update_manager.manager
-        self.app.latest_version = await mgr.latest_version()
-        self.app.has_updates = has_updates = await mgr.has_updates()
-        current_version, latest_version = self.app.version, self.app.latest_version
-        if has_updates:
-            # TODO: send message to admin service
-            # logger.debug('Updates found: %s => %s' % (current_version, latest_version))
-            pass
+        self.app.latest_version = await self.update_manager.manager.latest_version()
+        self.app.has_updates = await self.update_manager.manager.has_updates()
+        if self.app.has_updates:
+            logger.debug('Updates found: %s => %s' % (self.app.version, self.app.latest_version))
 
     def setup_update_manager(self):
         self.update_manager = manager.UpdateManager()
@@ -235,7 +231,8 @@ class BaseService(CeleryMixin, _BaseService):
         self.setup_update_manager()
 
     async def on_start(self) -> None:
-        await self.patch_app_version()
+        await self.setup_app_version()
+        await self.check_updates()
         await self.internal_connection.connect()
         self.start_celery()
         self.updates_checker.start()
