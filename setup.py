@@ -71,7 +71,7 @@ setup(
     ]},
     namespace_packages=['anthill'],
     install_requires=[
-        'celery>=4.2.1',
+        'celery>=4.3.0',
         'flower',
         'GitPython',
         'pygdbmi',
