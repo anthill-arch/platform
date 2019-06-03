@@ -11,3 +11,4 @@ redis>=2.10.0
 aioredis
 msgpack
 python-socketio
+psutil

@@ -11,6 +11,7 @@ from anthill.platform.api.internal import (
     JSONRPCInternalConnection, RequestTimeoutError, RequestError, as_internal)
 from socketio.exceptions import ConnectionError
 from tornado.ioloop import PeriodicCallback
+from psutil import virtual_memory, cpu_percent
 from functools import partial
 from tornado.web import url
 import logging
@@ -19,15 +20,15 @@ logger = logging.getLogger('anthill.application')
 
 
 class HeartbeatReport:
-    system_load_limit = 95
+    cpu_load_limit = 95
     ram_usage_limit = 95
 
-    def __init__(self, system_load=None, ram_usage=None):
-        self.system_load = system_load
+    def __init__(self, cpu_load=None, ram_usage=None):
+        self.cpu_load = cpu_load
         self.ram_usage = ram_usage
 
-    def server_is_overload(self) -> bool:
-        return (self.system_load >= self.system_load_limit or
+    def is_overload(self) -> bool:
+        return (self.cpu_load >= self.cpu_load_limit or
                 self.ram_usage >= self.ram_usage_limit)
 
 
@@ -56,7 +57,7 @@ class MasterRole:
         for controller in await self.get_controllers():
             try:
                 report = await self.internal_request(controller, 'heartbeat_report')
-                report = HeartbeatReport(report)
+                report = HeartbeatReport(**report)
             except RequestError as e:
                 report = e
             await self.heartbeat_callback(controller, report)
@@ -109,7 +110,10 @@ class ControllerRole:
     def setup_internal_api():
         @as_internal()
         async def heartbeat_report(api, **options):
-            raise NotImplementedError
+            return {
+                'memory': virtual_memory().percent,
+                'cpu': cpu_percent()
+            }
 
     def setup(self):
         self.setup_internal_api()
