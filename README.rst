@@ -1,3 +1,3 @@
+Anthill Platform
 ========================
-Anthill platform library
-========================
+Implements micro-services architecture and includes special tools for more comportable development
