@@ -2,14 +2,28 @@ from anthill.framework.conf import settings
 from anthill.framework.utils.asynchronous import as_future
 from anthill.platform.services.update.backends.base import BaseUpdateManager
 from anthill.platform.utils.ssh import PrivateSSHKeyContext
-from typing import List, Optional
 from git.exc import InvalidGitRepositoryError, NoSuchPathError
-import git
+from typing import List, Optional
 import contextlib
 import logging
+import functools
+import git
 
 
 logger = logging.getLogger('anthill.application')
+
+
+def _on_failure(retval=None):
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            try:
+                return func(*args, **kwargs)
+            except Exception as e:
+                logger.error(str(e))
+                return retval
+        return wrapper
+    return decorator
 
 
 class GitUpdateManager(BaseUpdateManager):
@@ -40,43 +54,13 @@ class GitUpdateManager(BaseUpdateManager):
     def _commits(self, branch) -> List[git.Commit]:
         return self.repo.iter_commits(branch, max_count=self.commits_max_count)
 
+    @_on_failure()
     def _versions(self, branch) -> List[str]:
         return list(map(lambda x: x.hexsha, self._commits(branch)))
 
+    @_on_failure()
     def _remote_versions(self) -> List[str]:
         return self._versions(self.remote_branch)
-
-    remote_versions = as_future(_remote_versions)
-    versions = remote_versions
-
-    def format_version(self, value):
-        return value[:7]
-
-    def _local_versions(self) -> List[str]:
-        return self._versions(self.local_branch)
-
-    local_versions = as_future(_local_versions)
-
-    @as_future
-    def current_version(self) -> str:
-        self.repo.git.checkout(self.local_branch)
-        ver = self.repo.head.commit.hexsha
-        return self.format_version(ver)
-
-    @as_future
-    def latest_version(self) -> str:
-        with self.deploy_environment_context():
-            self.repo.remotes.origin.fetch()
-        remote_latest = self.repo.commit(self.remote_branch)
-        ver = remote_latest.hexsha
-        return self.format_version(ver)
-
-    @as_future
-    def has_updates(self) -> bool:
-        local_latest = self.repo.commit(self.local_branch)
-        remote_latest = self.repo.commit(self.remote_branch)
-        return (local_latest != remote_latest and
-                local_latest.committed_date < remote_latest.committed_date)
 
     def _get_updates(self) -> List[str]:
         self.repo.git.checkout(self.local_branch)
@@ -87,11 +71,49 @@ class GitUpdateManager(BaseUpdateManager):
         new_versions = remote_versions.difference(local_versions)
         return list(map(self.format_version, new_versions))
 
+    remote_versions = as_future(_remote_versions)
+    versions = remote_versions
+
+    # noinspection PyMethodMayBeStatic
+    def format_version(self, value):
+        return value[:7]
+
+    def _local_versions(self) -> List[str]:
+        return self._versions(self.local_branch)
+
+    local_versions = as_future(_local_versions)
+
     @as_future
+    @_on_failure()
+    def current_version(self) -> str:
+        self.repo.git.checkout(self.local_branch)
+        ver = self.repo.head.commit.hexsha
+        return self.format_version(ver)
+
+    @as_future
+    @_on_failure()
+    def latest_version(self) -> str:
+        with self.deploy_environment_context():
+            self.repo.remotes.origin.fetch()
+        remote_latest = self.repo.commit(self.remote_branch)
+        ver = remote_latest.hexsha
+        return self.format_version(ver)
+
+    @as_future
+    @_on_failure()
+    def has_updates(self) -> bool:
+        local_latest = self.repo.commit(self.local_branch)
+        remote_latest = self.repo.commit(self.remote_branch)
+        return (local_latest != remote_latest and
+                local_latest.committed_date < remote_latest.committed_date)
+
+    @as_future
+    @_on_failure()
     def check_updates(self) -> List[str]:
         return self._get_updates()
 
     @as_future
+    @_on_failure()
     def updates_info(self) -> List[str]:
         return [
             c.message for c in self._commits(self.remote_branch)
@@ -99,6 +121,7 @@ class GitUpdateManager(BaseUpdateManager):
         ]
 
     @as_future
+    @_on_failure()
     def update(self, version: Optional[str] = None) -> None:
         self.repo.git.checkout(self.local_branch)
         with self.deploy_environment_context():
