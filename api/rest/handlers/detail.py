@@ -1,8 +1,9 @@
-from anthill.framework.handlers import RequestHandler, JSONHandlerMixin
-from anthill.framework.utils.asynchronous import thread_pool_exec
+from anthill.framework.handlers import RequestHandler
+from anthill.framework.utils.asynchronous import thread_pool_exec as future_exec, as_future
 from anthill.framework.core.exceptions import ImproperlyConfigured
 from anthill.framework.http import Http404
-from anthill.platform.api.rest.handlers.base import MarshmallowMixin
+from anthill.platform.api.rest.handlers.base import SerializableMixin
+from .base import RestAPIMixin
 
 
 class SingleObjectMixin:
@@ -13,14 +14,15 @@ class SingleObjectMixin:
     queryset = None
     slug_field = 'slug'
     slug_url_kwarg = 'slug'
-    pk_url_kwarg = 'pk'
+    pk_url_kwarg = 'id'
     query_pk_and_slug = False
 
-    async def get_object(self, queryset=None):
+    @as_future
+    def get_object(self, queryset=None):
         """
         Return the object the handler is displaying.
 
-        Require `self.queryset` and a `pk` or `slug` argument in the url entry.
+        Require `self.queryset` and a `id` or `slug` argument in the url entry.
         Subclasses can override this to return any object.
         """
         # Use a custom queryset if provided.
@@ -31,12 +33,12 @@ class SingleObjectMixin:
         pk = self.path_kwargs.get(self.pk_url_kwarg)
         slug = self.path_kwargs.get(self.slug_url_kwarg)
         if pk is not None:
-            queryset = await thread_pool_exec(queryset.filter_by, pk=pk)
+            queryset = queryset.filter_by(id=pk)
 
         # Next, try looking up by slug.
         if slug is not None and (pk is None or self.query_pk_and_slug):
             slug_field = self.get_slug_field()
-            queryset = await thread_pool_exec(queryset.filter_by, **{slug_field: slug})
+            queryset = queryset.filter_by(**{slug_field: slug})
 
         # If none of those are defined, it's an error.
         if pk is None and slug is None:
@@ -45,7 +47,7 @@ class SingleObjectMixin:
                 "pk or a slug in the url." % self.__class__.__name__)
 
         # Get the single item from the filtered queryset
-        obj = await thread_pool_exec(queryset.one_or_none)
+        obj = queryset.one_or_none()
         if obj is None:
             raise Http404
 
@@ -76,33 +78,19 @@ class SingleObjectMixin:
         return self.slug_field
 
 
-class MarshmallowSingleObjectMixin(MarshmallowMixin):
-    def get_schema(self):
-        schema_class = self.get_schema_class()
-        return schema_class()
-
-    def get_schema_class(self):
-        if self.schema_class is None:
+class SerializableSingleObjectMixin(SerializableMixin):
+    def get_serializer_class(self):
+        if self.serializer_class is None:
             try:
                 return self.object.__marshmallow__
             except AttributeError:
                 raise ImproperlyConfigured(
-                    "No schema class for dumping data. Either provide a schema_class "
+                    "No serializer class for dumping data. Either provide a serializer_class "
                     "or define schema on the Model.")
-        return super().get_schema_class()
+        return super().get_serializer_class()
 
 
-class DetailMixin(SingleObjectMixin, MarshmallowSingleObjectMixin, JSONHandlerMixin):
-    def get_schema_class(self):
-        if self.schema_class is None:
-            try:
-                return self.object.__marshmallow__
-            except AttributeError:
-                raise ImproperlyConfigured(
-                    "No schema class for dumping data. Either provide a schema_class "
-                    "or define schema on the Model.")
-        return self.schema_class
-
+class DetailMixin(SingleObjectMixin, SerializableSingleObjectMixin, RestAPIMixin):
     async def get(self, *args, **kwargs):
         # noinspection PyAttributeOutsideInit
         self.object = await self.get_object()
