@@ -33,7 +33,7 @@ class SingleObjectMixin:
         pk = self.path_kwargs.get(self.pk_url_kwarg)
         slug = self.path_kwargs.get(self.slug_url_kwarg)
         if pk is not None:
-            queryset = queryset.filter_by(id=pk)
+            queryset = queryset.filter_by(**{self.pk_url_kwarg: pk})
 
         # Next, try looking up by slug.
         if slug is not None and (pk is None or self.query_pk_and_slug):

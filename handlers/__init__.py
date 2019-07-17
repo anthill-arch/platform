@@ -1,15 +1,14 @@
 from anthill.platform.auth.handlers import (
-    UserHandlerMixin, LoginHandlerMixin, LogoutHandlerMixin, AuthHandlerMixin,
-    UserRequestHandler, LoginHandler, UserTemplateHandler, LogoutHandler
+    LoginHandlerMixin, LogoutHandlerMixin, LoginHandler, LogoutHandler
 )
+from .base import UserHandlerMixin
 
 __all__ = [
     'UserHandlerMixin',
+
     'LoginHandlerMixin',
     'LogoutHandlerMixin',
-    'AuthHandlerMixin',
-    'UserRequestHandler',
-    'UserTemplateHandler',
+
     'LoginHandler',
-    'LogoutHandler'
+    'LogoutHandler',
 ]

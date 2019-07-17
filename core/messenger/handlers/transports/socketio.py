@@ -3,7 +3,7 @@ from anthill.framework.core.exceptions import ImproperlyConfigured
 from anthill.framework.core.mail.asynchronous import send_mail
 from anthill.framework.utils.translation import translate as _
 from anthill.framework.handlers.socketio import SocketIOHandler
-from anthill.platform.auth.handlers import UserHandlerMixin
+from anthill.platform.handlers import UserHandlerMixin
 from anthill.platform.core.messenger.handlers.client_watchers import MessengerClientsWatcher
 from anthill.platform.core.messenger.client.exceptions import ClientError
 from anthill.platform.core.messenger.moderators import ModeratedException, moderate_message
@@ -374,7 +374,7 @@ class MessengerNamespace(socketio.AsyncNamespace):
     # /System actions
 
 
-class MessengerHandler(UserHandlerMixin, SocketIOHandler):
+class MessengerHandler(SocketIOHandler, UserHandlerMixin):
     def check_origin(self, origin):
         return True
         # TODO: configuration from settings.py

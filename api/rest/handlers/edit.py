@@ -1,8 +1,10 @@
 from anthill.framework.handlers.base import RequestHandler
 from anthill.framework.handlers.detail import SingleObjectMixin, DetailHandler
 from anthill.framework.utils.asynchronous import thread_pool_exec as future_exec
+from anthill.framework.utils.translation import translate_lazy as _
 from anthill.framework.forms.orm import model_form
 from anthill.framework.db import db
+from .base import RestAPIMixin
 
 
 class FormMixin:
@@ -42,13 +44,19 @@ class FormMixin:
         return kwargs
 
     async def form_valid(self, form):
-        """If the form is valid, redirect to the supplied URL."""
+        """If the form is valid."""
+        self.write_json(data='OK')
 
     async def form_invalid(self, form):
-        """If the form is invalid, render the invalid form."""
+        """If the form is invalid, send form errors."""
+        self.write_json(
+            data={'errors': form.errors},
+            message=_('Validation failed.'),
+            status_code=400
+        )
 
 
-class ModelFormMixin(FormMixin, SingleObjectMixin):
+class ModelFormMixin(FormMixin, SingleObjectMixin, RestAPIMixin):
     """Provide a way to show and handle a ModelForm in a request."""
 
     def get_model(self):
@@ -63,7 +71,8 @@ class ModelFormMixin(FormMixin, SingleObjectMixin):
             # Try to get a queryset and extract the model class
             # from that
             queryset = self.get_queryset()
-            return queryset.one().__class__
+            # noinspection PyProtectedMember
+            return queryset._entities[0].type
 
     def get_form_class(self):
         """Return the form class to use in this handler."""
