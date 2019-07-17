@@ -33,7 +33,7 @@ class UserHandlerMixin:
 
     # noinspection PyAttributeOutsideInit
     async def prepare(self):
-        super().prepare()
+        # super().prepare()
         self.current_user = await self.get_user()
         self.user_logger = get_user_logger(self.current_user)
         self.app_logger = ApplicationLogger(self.current_user)

@@ -2,6 +2,7 @@ from anthill.framework.handlers import RequestHandler
 from anthill.framework.utils.asynchronous import thread_pool_exec as future_exec, as_future
 from anthill.framework.core.exceptions import ImproperlyConfigured
 from anthill.framework.http import Http404
+from anthill.platform.handlers import UserHandlerMixin
 from anthill.platform.api.rest.handlers.base import SerializableMixin
 from .base import RestAPIMixin
 
@@ -97,5 +98,5 @@ class DetailMixin(SingleObjectMixin, SerializableSingleObjectMixin, RestAPIMixin
         self.write_json(data=self.serialize(self.object))
 
 
-class DetailHandler(DetailMixin, RequestHandler):
+class DetailHandler(DetailMixin, RequestHandler, UserHandlerMixin):
     pass

@@ -1,9 +1,10 @@
-from anthill.framework.handlers.base import RequestHandler
+from anthill.framework.handlers import RequestHandler
 from anthill.framework.handlers.detail import SingleObjectMixin, DetailHandler
 from anthill.framework.utils.asynchronous import thread_pool_exec as future_exec
 from anthill.framework.utils.translation import translate_lazy as _
 from anthill.framework.forms.orm import model_form
 from anthill.framework.db import db
+from anthill.platform.handlers import UserHandlerMixin
 from .base import RestAPIMixin
 
 
@@ -115,7 +116,7 @@ class UpdateModelFormMixin(ModelFormMixin):
         return form_class
 
 
-class ProcessFormHandler(RequestHandler):
+class ProcessFormHandler(RequestHandler, UserHandlerMixin):
     """Processes form on POST or PUT."""
 
     async def post(self, *args, **kwargs):
@@ -178,5 +179,5 @@ class DeletionMixin:
         await future_exec(self.object.delete)
 
 
-class DeleteHandler(DeletionMixin, DetailHandler):
+class DeleteHandler(DeletionMixin, DetailHandler, UserHandlerMixin):
     """Handler for deleting an object."""

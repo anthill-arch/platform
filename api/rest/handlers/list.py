@@ -1,10 +1,11 @@
 from anthill.framework.utils.asynchronous import as_future, thread_pool_exec as future_exec
 from anthill.framework.core.exceptions import ImproperlyConfigured
 from anthill.framework.core.paginator import Paginator, InvalidPage
-from anthill.framework.handlers.base import RequestHandler
+from anthill.framework.handlers import RequestHandler
 from anthill.framework.http.errors import Http404
 from anthill.framework.utils.translation import translate as _
 from anthill.platform.api.rest.handlers.base import SerializableMixin
+from anthill.platform.handlers import UserHandlerMixin
 from sqlalchemy_utils import sort_query
 from sqlalchemy.orm import Query
 from .base import RestAPIMixin
@@ -156,5 +157,5 @@ class ListMixin(MultipleObjectMixin, SerializableMultipleObjectsMixin, RestAPIMi
         self.write_json(data=data)
 
 
-class ListHandler(ListMixin, RequestHandler):
+class ListHandler(ListMixin, RequestHandler, UserHandlerMixin):
     """A handler for displaying a list of objects."""
