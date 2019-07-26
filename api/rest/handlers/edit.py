@@ -1,10 +1,10 @@
 from anthill.framework.handlers import RequestHandler
-from anthill.framework.handlers.detail import SingleObjectMixin, DetailHandler
 from anthill.framework.utils.asynchronous import thread_pool_exec as future_exec
 from anthill.framework.utils.translation import translate_lazy as _
 from anthill.framework.forms.orm import model_form
 from anthill.framework.db import db
 from anthill.platform.handlers import UserHandlerMixin
+from .detail import SingleObjectMixin, DetailHandler
 from .base import RestAPIMixin
 
 
