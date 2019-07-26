@@ -10,6 +10,7 @@ class BaseApplication(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     active = db.Column(db.Boolean, nullable=False, default=True)
     name = db.Column(db.String(128), nullable=False, unique=True)
+    title = db.Column(db.String(512), nullable=False, unique=True)
 
     @declared_attr
     def versions(self):

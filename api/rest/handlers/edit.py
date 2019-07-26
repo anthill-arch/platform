@@ -78,9 +78,10 @@ class ModelFormMixin(FormMixin, SingleObjectMixin, RestAPIMixin):
     def get_form_class(self):
         """Return the form class to use in this handler."""
         if self.form_class:
-            return self.form_class
+            form_class = self.form_class
         else:
-            return model_form(self.get_model(), db_session=db.session)
+            form_class = model_form(self.get_model(), db_session=db.session)
+        return form_class
 
     def get_form_kwargs(self):
         """Return the keyword arguments for instantiating the form."""
@@ -105,15 +106,6 @@ class ModelFormMixin(FormMixin, SingleObjectMixin, RestAPIMixin):
 
 class CreateModelFormMixin(ModelFormMixin):
     pass
-
-
-class UpdateModelFormMixin(ModelFormMixin):
-    def get_form_class(self):
-        """Return the form class to use in this handler."""
-        form_class = super().get_form_class()
-        setattr(form_class.Meta, 'all_fields_optional', True)
-        setattr(form_class.Meta, 'assign_required', False)
-        return form_class
 
 
 class ProcessFormHandler(RequestHandler, UserHandlerMixin):
@@ -159,6 +151,15 @@ class CreateHandler(CreatingMixin, ProcessFormHandler):
 
 class UpdatingMixin:
     """Provide the ability to update objects."""
+
+    def get_form_class(self):
+        """Return the form class to use in this handler."""
+        form_class = super().get_form_class()
+        if self.request.method in ('PUT',):  # Updating
+            # Patching form meta
+            setattr(form_class.Meta, 'all_fields_optional', True)
+            setattr(form_class.Meta, 'assign_required', False)
+        return form_class
 
     async def put(self, *args, **kwargs):
         # noinspection PyAttributeOutsideInit
