@@ -1,5 +1,6 @@
 from anthill.framework.utils.decorators import method_decorator, retry
 from anthill.framework.utils.asynchronous import as_future, thread_pool_exec as future_exec
+from anthill.framework.utils.module_loading import import_string
 from anthill.framework.utils import timezone
 from anthill.framework.utils.geoip import GeoIP2
 from anthill.framework.core.servers import BaseService as _BaseService
@@ -199,31 +200,36 @@ class BaseService(CeleryMixin, _BaseService):
         self.update_manager = manager.UpdateManager()
 
     def setup_public_api(self):
-        public_api_url = getattr(self.config, 'PUBLIC_API_URL', None)
-        if public_api_url is not None:
+        api_url = getattr(self.config, 'PUBLIC_API_URL', None)
+        if api_url is not None:
             from anthill.framework.handlers import GraphQLHandler
             self.add_handlers(self.app.host_regex, [
-                url(_url_pattern(public_api_url), GraphQLHandler, dict(graphiql=True), name='api')])
-            logger.debug('Public api installed on %s.' % public_api_url)
+                url(_url_pattern(api_url), GraphQLHandler, {'graphiql': True}, name='api')])
+            logger.debug('Public api installed on %s.' % api_url)
         else:
             logger.debug('Public api not installed.')
 
     def setup_log_streaming(self):
-        log_streaming_config = getattr(self.config, 'LOG_STREAMING', None)
-        if log_streaming_config:
-            from anthill.framework.handlers import WatchLogFileHandler
-            custom_handler_class = log_streaming_config.get('handler', {}).get('class')
-            if not custom_handler_class:
-                handler_class = WatchLogFileHandler
-            else:
-                from anthill.framework.utils.module_loading import import_string
-                handler_class = import_string(custom_handler_class)
-            handler_kwargs = log_streaming_config.get('handler', {}).get('kwargs', dict(handler_name='anthill'))
-            log_streaming_url = log_streaming_config.get('path', '/log/')
+        streaming_config = getattr(self.config, 'LOG_STREAMING', None)
+        if streaming_config:
+            try:
+                handler_class = streaming_config['handler']['class']
+            except (KeyError, TypeError):
+                handler_class = 'anthill.framework.handlers.WatchLogFileHandler'
+
+            handler_class = import_string(handler_class)
+
+            try:
+                handler_kwargs = streaming_config['handler']['kwargs']
+            except (KeyError, TypeError):
+                handler_kwargs = {'handler_name': 'anthill'}
+
+            streaming_url = _url_pattern(streaming_config.get('path', '/log/'))
+
             self.add_handlers(self.app.host_regex, [
-                url(_url_pattern(log_streaming_url), handler_class, kwargs=handler_kwargs, name='log'),
-            ])
-            logger.debug('Log streaming installed on %s.' % log_streaming_url)
+                url(streaming_url, handler_class, kwargs=handler_kwargs, name='log')])
+
+            logger.debug('Log streaming installed on %s.' % streaming_url)
         else:
             logger.debug('Log streaming not installed.')
 
