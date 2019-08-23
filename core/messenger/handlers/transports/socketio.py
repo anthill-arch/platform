@@ -254,10 +254,8 @@ class MessengerNamespace(socketio.AsyncNamespace):
         # /Moderation
 
         try:
-            message_id = await client.create_message(group, {
-                'data': data,
-                'content_type': content_type
-            })
+            message_kwargs = {'data': data, 'content_type': content_type}
+            message_id = await client.create_message(group, message_kwargs)
         except ClientError as e:
             content['error'] = str(e)
             personal_group = client.create_personal_group()
@@ -314,32 +312,37 @@ class MessengerNamespace(socketio.AsyncNamespace):
         await self.emit('typing_stopped', data=content, room=group, skip_sid=sid)
 
     async def on_sending_file_started(self, sid, data):
+        """Sending file started."""
         client = await self.get_client(sid)
         group = self.retrieve_group(data)
+        event_id = data.get('event_id')
         content = {
             'user': {
                 'id': client.get_user_id()
             },
             'content_type': None,
-            'event_id': None
+            'event_id': event_id,
+            'preview': None
         }
         await self.emit('sending_file_started', data=content, room=group, skip_sid=sid)
 
     async def on_sending_file_stopped(self, sid, data):
+        """Sending file stopped."""
         client = await self.get_client(sid)
         group = self.retrieve_group(data)
+        event_id = data.get('event_id')
         content = {
             'user': {
                 'id': client.get_user_id()
             },
-            'event_id': None
+            'event_id': event_id
         }
         await self.emit('sending_file_stopped', data=content, room=group, skip_sid=sid)
 
     async def on_online(self, sid):
         request_handler = await self.get_request_handler(sid)
-        user_agent = request_handler.request.headers.get('User-Agent')
-        user_agent = user_agents.parse(user_agent)
+        user_agent = user_agents.parse(
+            request_handler.request.headers.get('User-Agent'))
         client = await self.get_client(sid)
         content = {
             'user': {
